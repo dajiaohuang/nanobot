@@ -884,6 +884,22 @@ def _run_gateway(
         provider_signature=provider_snapshot.signature,
         hooks=[TokenUsageHook(timezone_name=config.agents.defaults.timezone)],
     )
+    # Load plugins when enabled.
+    if config.agents.defaults.plugins_enabled:
+        from nanobot.config.paths import get_data_dir
+        from nanobot.plugins.loader import discover_plugin_manifests
+
+        data_dir = get_data_dir()
+        extra_dir = config.agents.defaults.plugins_dir.strip()
+        search_dir = Path(extra_dir) if extra_dir else data_dir
+        for manifest in discover_plugin_manifests(search_dir):
+            logger.info(
+                "Plugin loaded: {} v{} ({})",
+                manifest.name, manifest.version, manifest.description or "no description",
+            )
+            for tool_spec in manifest.tools:
+                logger.info("  + tool: {}", tool_spec.name)
+
     WebuiTurnCoordinator(
         bus=bus,
         sessions=session_manager,
