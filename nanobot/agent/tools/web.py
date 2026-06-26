@@ -66,6 +66,7 @@ class WebSearchConfig(Base):
 class WebFetchConfig(Base):
     """Web fetch tool configuration."""
     use_jina_reader: bool = True
+    use_crawl4ai: bool = False  # Use Crawl4AI as preferred extractor when available
 
 
 class WebToolsConfig(Base):
@@ -935,7 +936,9 @@ class WebFetchTool(Tool):
             logger.debug("Pre-fetch image detection failed for {}: {}", url, e)
 
         result = None
-        if self.config.use_jina_reader:
+        if self.config.use_crawl4ai:
+            result = await self._fetch_crawl4ai(url, max_chars)
+        if result is None and self.config.use_jina_reader:
             result = await self._fetch_jina(url, max_chars)
         if result is None:
             result = await self._fetch_readability(url, extract_mode, max_chars)
@@ -976,6 +979,42 @@ class WebFetchTool(Tool):
         except Exception as e:
             logger.debug("Jina Reader failed for {}, falling back to readability: {}", url, e)
             return None
+
+    async def _fetch_crawl4ai(self, url: str, max_chars: int) -> str | None:
+        """Try fetching via Crawl4AI. Returns None on failure or if not installed."""
+        try:
+            import crawl4ai  # noqa: F401
+        except ImportError:
+            return None
+        try:
+            async with httpx.AsyncClient(proxy=self.proxy, timeout=30.0) as client:
+                r = await client.get(url, headers={"User-Agent": self.user_agent})
+                r.raise_for_status()
+                html = r.text
+        except Exception as exc:
+            logger.debug("Crawl4AI fetch failed for {}: {}", url, exc)
+            return None
+
+        try:
+            from crawl4ai import AsyncWebCrawler
+            async with AsyncWebCrawler() as crawler:
+                result = await crawler.arun(url=url, raw_html=html)
+                text = result.markdown or result.extracted_content or ""
+        except Exception as exc:
+            logger.debug("Crawl4AI extraction failed for {}: {}", url, exc)
+            return None
+
+        if not text.strip():
+            return None
+        truncated = len(text) > max_chars
+        if truncated:
+            text = text[:max_chars]
+        text = f"{_UNTRUSTED_BANNER}\n\n{text}"
+        return json.dumps({
+            "url": url, "finalUrl": url, "status": 200,
+            "extractor": "crawl4ai", "truncated": truncated, "length": len(text),
+            "untrusted": True, "text": text,
+        }, ensure_ascii=False)
 
     async def _fetch_readability(self, url: str, extract_mode: str, max_chars: int) -> Any:
         """Local fallback using readability-lxml."""
