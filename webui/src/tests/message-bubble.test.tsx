@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest";
 
 import { MessageBubble } from "@/components/MessageBubble";
+import { setAppLanguage } from "@/i18n";
 import { fmtDateTime, formatMessageEndTime } from "@/lib/format";
 import type {
   CliAppInfo,
@@ -95,6 +96,46 @@ const SLASH_COMMANDS: SlashCommand[] = [
 ];
 
 describe("MessageBubble", () => {
+  it("copies the localized compact reply instead of the stored English text", async () => {
+    await setAppLanguage("zh-CN");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    render(<MessageBubble message={{
+      id: "compact-empty", role: "assistant", content: "Nothing to compact.",
+      compactReply: "empty", createdAt: 1,
+    }} />);
+    expect(screen.getByText("无需压缩上下文")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "复制" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("无需压缩上下文"));
+  });
+
+  it("renders a compacted context notice", () => {
+    const message: UIMessage = {
+      id: "compaction-1",
+      role: "assistant",
+      content: "",
+      kind: "compaction",
+      createdAt: Date.now(),
+      compaction: {
+        id: "compact-1",
+        phase: "succeeded",
+        announce: true,
+      },
+    };
+
+    const { container } = render(<MessageBubble message={message} />);
+
+    const notice = container.querySelector("[data-context-compaction='succeeded']");
+    expect(notice).toHaveAttribute("role", "status");
+    expect(notice).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByText("Context compacted")).toBeInTheDocument();
+    expect(notice).toHaveTextContent(/^Context compacted$/);
+    expect(notice?.querySelector(".lucide-archive")).toBeInTheDocument();
+  });
+
   it("renders user messages as right-aligned pills", () => {
     const message: UIMessage = {
       id: "u1",
@@ -108,9 +149,31 @@ describe("MessageBubble", () => {
     const pill = screen.getByText("hello");
 
     expect(row).toHaveClass("ml-auto", "flex");
-    expect(pill).toHaveClass("ml-auto", "w-fit", "rounded-[18px]");
+    expect(pill).toHaveClass("ml-auto", "w-fit", "rounded-floating");
     expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Fork" })).not.toBeInTheDocument();
+  });
+
+  it("renders cross-session input with its public handle", () => {
+    const message: UIMessage = {
+      id: "session-message:message-1",
+      role: "user",
+      content: "Please review this.",
+      createdAt: 1_700_000_000_123,
+      sessionMessage: {
+        message_id: "message-1",
+        session: {
+          id: "handle_0123456789abcdef0123456789abcdef",
+          name: "mira-0123456789",
+        },
+      },
+    };
+
+    const { container } = render(<MessageBubble message={message} />);
+
+    expect(container.querySelector("[data-session-message]")).toBeInTheDocument();
+    expect(screen.getByText("@mira-0123456789")).toBeInTheDocument();
+    expect(screen.getByText("Please review this.")).toBeInTheDocument();
   });
 
   it("outlines temporary-chat user messages with a short dashed border", () => {
@@ -223,6 +286,7 @@ describe("MessageBubble", () => {
 
     const quote = screen.getByLabelText("Quoted context");
     expect(quote).toHaveTextContent("selected assistant excerpt");
+    expect(quote).not.toHaveAttribute("title");
     expect(screen.queryByText("Quoted context")).not.toBeInTheDocument();
     expect(screen.getByText("What about this?")).toBeInTheDocument();
 
@@ -286,7 +350,7 @@ describe("MessageBubble", () => {
     expect(command.getAttribute("style")).toContain("var(--inline-token-highlight)");
     expect(command.className).not.toMatch(/(?:^|\s)(?:bg-|border|ring|rounded)/);
     expect(command.parentElement).toHaveTextContent("/model gpt-5");
-    expect(command.parentElement).toHaveClass("rounded-[18px]", "bg-secondary/70");
+    expect(command.parentElement).toHaveClass("rounded-floating", "bg-secondary/70");
   });
 
   it("keeps unknown and invalid slash commands as plain message text", () => {
@@ -934,7 +998,7 @@ describe("MessageBubble", () => {
     const { container } = render(<MessageBubble message={message} />);
 
     const imageButton = screen.getByRole("button", { name: /view image/i });
-    expect(imageButton).toHaveClass("w-[min(100%,34rem)]", "rounded-[20px]");
+    expect(imageButton).toHaveClass("w-[min(100%,34rem)]", "rounded-panel");
     expect(imageButton).toHaveClass(
       "border",
       "border-border/60",
@@ -989,4 +1053,5 @@ describe("MessageBubble", () => {
     expect(container.querySelector('img[src="/api/media/sig/svg"]')).toBeInTheDocument();
     expect(screen.queryByLabelText("File attachment")).not.toBeInTheDocument();
   });
+
 });

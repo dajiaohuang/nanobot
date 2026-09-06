@@ -143,8 +143,9 @@
       "presets": "Predefinições de modelo",
       "editPreset": "Editar predefinição",
       "presetName": "Nome da predefinição",
-      "presetNameHelp": "Um nome curto usado nas configurações de modelo.",
-      "presetNamePlaceholder": "Escrita rápida",
+      "presetNameHelp": "Usado na interface e nos comandos /model. Os nomes devem ser únicos.",
+      "presetNameDuplicate": "Já existe uma predefinição com este nome.",
+      "presetNamePlaceholder": "ex.: Escrita rápida",
       "advancedOptions": "Opções avançadas",
       "advancedSummary": "Contexto {{context}} · Máx. {{max}} tokens",
       "maxTokens": "Máx. de tokens de saída",
@@ -197,6 +198,7 @@
       "fileEditDisplay": "Exibição de edição de arquivo",
       "codeWrap": "Quebra de linha no código",
       "brandLogos": "Logos de marca",
+      "browserNotifications": "Notificações de tarefas",
       "maxResults": "Máx. de resultados",
       "timeout": "Tempo limite",
       "jinaReader": "Leitor Jina",
@@ -242,6 +244,7 @@
       "fileEditDisplay": "Escolha se a atividade de edição de arquivo é exibida como contagem de linhas ou como diferenças.",
       "codeWrap": "Mantém linhas longas de código legíveis em telas menores.",
       "brandLogos": "Mostra logotipos de provedores terceiros e de CLIs em Configurações.",
+      "browserNotifications": "Notifica somente quando esta página está em segundo plano. Desativado por padrão.",
       "maxResults": "Resultados retornados por cada chamada de web_search.",
       "timeout": "Segundos antes de uma requisição de busca expirar.",
       "jinaReader": "Usa o Jina Reader para web_fetch quando disponível.",
@@ -480,7 +483,7 @@
       "save": "Salvar",
       "saving": "Salvando",
       "saveOrder": "Salvar ordem",
-      "savePreset": "Salvar predefinição",
+      "savePreset": "Salvar",
       "delete": "Excluir",
       "deleting": "Excluindo...",
       "edit": "Editar",
@@ -1012,7 +1015,8 @@
     "activity": {
       "running": "Agente em execução",
       "complete": "Agente finalizado",
-      "updated": "Nova atividade"
+      "updated": "Nova atividade",
+      "recovery": "Esta conversa precisa da sua atenção"
     },
     "pin": "Fixar",
     "unpin": "Desafixar",
@@ -1079,6 +1083,13 @@
     "error": "Erro de conexão"
   },
   "thread": {
+    "compaction": {
+      "cancelled": "Compactação do contexto cancelada",
+      "empty": "Não há contexto para compactar.",
+      "started": "Compactando contexto…",
+      "failed": "Falha ao compactar o contexto",
+      "succeeded": "Contexto compactado"
+    },
     "loadingConversation": "Carregando conversa…",
     "empty": {
       "greetings": {
@@ -1191,6 +1202,21 @@
       "removeQuotedContext": "Remover contexto citado",
       "modelNotConfigured": "Modelo não configurado",
       "configureModel": "Configurar modelo",
+      "chooseAI": "Escolha sua IA",
+      "switchModel": "Alternar o modelo desta conversa",
+      "manageModels": "Gerenciar modelos",
+      "context": {
+        "tooltip": "Contexto {{percent}}%",
+        "detailsLabel": "Abrir uso do contexto",
+        "panelTitle": "Uso do contexto",
+        "contextTitle": "Contexto",
+        "recentRounds": "Rodadas recentes",
+        "inputTrend": "Tokens de entrada",
+        "input": "Tokens de entrada",
+        "cacheHitRate": "Taxa de acertos do cache KV",
+        "output": "Tokens de saída",
+        "duration": "Tempo de geração"
+      },
       "queued": {
         "label": "Guia em fila",
         "guide": "Guiar",
@@ -1257,6 +1283,10 @@
           "new": {
             "title": "Nova conversa",
             "description": "Reinicia esta conversa e inicia uma conversa nova."
+          },
+          "compact": {
+            "title": "Compactar contexto",
+            "description": "Compacte o contexto desta conversa e continue conversando."
           },
           "stop": {
             "title": "Parar tarefa atual",
@@ -1423,7 +1453,24 @@
     "fileEditShowMoreLines": "Mostrar mais {{count}} linhas",
     "fileEditShowFewerLines": "Mostrar menos linhas",
     "fileEditOpenFile": "Abrir arquivo",
-    "fileEditDiffTruncated": "Diferenças truncadas. Abra o arquivo para ver a alteração completa."
+    "fileEditDiffTruncated": "Diferenças truncadas. Abra o arquivo para ver a alteração completa.",
+    "usage": {
+      "context": "Contexto atual: {{tokens}}{{capacity}}",
+      "requests": "{{count}} chamadas nesta rodada",
+      "estimated": "Inclui uso estimado"
+    }
+  },
+  "recovery": {
+    "actionFailed": "A recuperação falhou. Tente novamente.",
+    "interrupted": "Tarefa interrompida",
+    "completed": "Tarefa concluída",
+    "failed": "Falha ao recuperar a tarefa",
+    "failedHelp": "Não foi possível restaurar a tarefa salva com segurança. Revise-a antes de continuar.",
+    "resuming": "Restaurando a tarefa interrompida…",
+    "review": "Revise a tarefa antes de continuar. As ferramentas não serão executadas novamente de forma automática.",
+    "safeResume": "Continuando a partir do contexto de conversa salvo.",
+    "dismiss": "Descartar",
+    "continue": "Continuar"
   },
   "lightbox": {
     "title": "Pré-visualização de imagem",
@@ -1451,16 +1498,16 @@
   "workbench": {
     "aria": "Área de conversas",
     "panes": "Painéis",
-    "tabAria": "Aba: {{title}}",
+    "tabAria": "Grupo: {{title}}",
     "panesInTab": "Painéis em {{title}}",
     "collapseTabGroup": "Recolher os painéis em {{title}}",
     "expandTabGroup": "Expandir os painéis em {{title}}",
     "dropPane": "Mover {{pane}} para {{tab}}",
     "createGroup": "Criar grupo",
     "moveTo": "Mover para",
-    "renameTabTitle": "Renomear aba",
-    "renameTabDescription": "Dê um nome a esta aba para organizar seus painéis.",
-    "renameTabPlaceholder": "Nome da aba",
+    "renameGroupTitle": "Renomear grupo",
+    "renameGroupDescription": "Dê um nome a este grupo.",
+    "renameGroupPlaceholder": "Nome do grupo",
     "dissolveTab": "Desfazer grupo",
     "layout": "Layout de painéis",
     "addPane": "Adicionar painel",

@@ -161,6 +161,7 @@
       "webuiDefaultAccess": "預設存取權",
       "currentModel": "目前設定",
       "brandLogos": "品牌 Logo",
+      "browserNotifications": "任務通知",
       "cliAppsCatalog": "目錄",
       "cliAppsFilter": "篩選",
       "engine": "引擎",
@@ -204,6 +205,7 @@
       "selectedModelProvider": "由選取的模型決定。",
       "selectedModelValue": "由選取的模型決定。",
       "brandLogos": "在設定中顯示第三方供應商與 CLI 圖示。",
+      "browserNotifications": "僅在頁面位於背景時通知，預設關閉。",
       "cliAppsCatalog": "只安裝 nanobot 可在本機執行的應用程式專用 CLI 轉接器；不會改動原生應用程式。",
       "cliAppsFilter": "依應用程式、類別或功能搜尋。",
       "logs": "開啟原生引擎日誌資料夾。",
@@ -269,7 +271,7 @@
       "save": "儲存",
       "saving": "正在儲存",
       "saveOrder": "儲存順序",
-      "savePreset": "儲存預設",
+      "savePreset": "儲存",
       "delete": "刪除",
       "deleting": "正在刪除…",
       "edit": "編輯",
@@ -419,8 +421,9 @@
       "presets": "模型預設",
       "editPreset": "編輯預設",
       "presetName": "預設名稱",
-      "presetNameHelp": "模型設定中使用的簡短名稱。",
-      "presetNamePlaceholder": "快速寫作",
+      "presetNameHelp": "用於介面和 /model 命令；名稱不得重複。",
+      "presetNameDuplicate": "已有同名預設。",
+      "presetNamePlaceholder": "例如：快速寫作",
       "advancedOptions": "進階選項",
       "advancedSummary": "上下文 {{context}} · 最大輸出 {{max}} tokens",
       "maxTokens": "最大輸出 tokens",
@@ -998,7 +1001,8 @@
     "activity": {
       "running": "智能體正在執行",
       "complete": "智能體已完成",
-      "updated": "有新內容"
+      "updated": "有新內容",
+      "recovery": "此對話需要你的處理"
     },
     "pin": "置頂",
     "unpin": "取消置頂",
@@ -1065,6 +1069,13 @@
     "error": "連線錯誤"
   },
   "thread": {
+    "compaction": {
+      "cancelled": "上下文壓縮已取消",
+      "empty": "無需壓縮上下文",
+      "started": "正在壓縮上下文…",
+      "failed": "上下文壓縮失敗",
+      "succeeded": "上下文已壓縮"
+    },
     "loadingConversation": "正在載入話題…",
     "empty": {
       "greetings": {
@@ -1177,6 +1188,21 @@
       "removeQuotedContext": "移除引用內容",
       "modelNotConfigured": "尚未設定模型",
       "configureModel": "設定模型",
+      "chooseAI": "選擇你的 AI",
+      "switchModel": "切換此對話使用的模型",
+      "manageModels": "管理模型預設",
+      "context": {
+        "tooltip": "上下文 {{percent}}%",
+        "detailsLabel": "開啟上下文用量",
+        "panelTitle": "上下文用量",
+        "contextTitle": "上下文",
+        "recentRounds": "最近輪次",
+        "inputTrend": "輸入 Token",
+        "input": "輸入 Token",
+        "cacheHitRate": "KV Cache 命中率",
+        "output": "輸出 Token",
+        "duration": "生成耗時"
+      },
       "queued": {
         "label": "佇列中的引導訊息",
         "guide": "引導",
@@ -1233,6 +1259,10 @@
           "new": {
             "title": "新增話題",
             "description": "重置目前話題，並開始新的話題。"
+          },
+          "compact": {
+            "title": "壓縮上下文",
+            "description": "壓縮目前對話的上下文並繼續對話。"
           },
           "stop": {
             "title": "停止目前任務",
@@ -1392,6 +1422,11 @@
     "fileEditShowFewerLines": "收起部分行",
     "fileEditOpenFile": "開啟檔案",
     "fileEditDiffTruncated": "差異內容已截斷。請開啟檔案以檢視完整變更。",
+    "usage": {
+      "context": "最近一次上下文：{{tokens}}{{capacity}} tokens",
+      "requests": "{{count}} 次模型請求",
+      "estimated": "包含估算用量"
+    },
     "activityThinkingFor": "思考中，已 {{duration}}",
     "activityThought": "已思考",
     "activityThoughtFor": "已思考 {{duration}}",
@@ -1410,6 +1445,18 @@
     "automationSourceFallback": "自動化",
     "automationTriggered": "已自動觸發",
     "askAboutSelection": "繼續提問"
+  },
+  "recovery": {
+    "actionFailed": "復原操作失敗，請再試一次。",
+    "interrupted": "任務已中斷",
+    "completed": "任務已完成",
+    "failed": "任務復原失敗",
+    "failedHelp": "無法安全復原已儲存的任務，繼續前請先檢查。",
+    "resuming": "正在復原中斷的任務…",
+    "review": "繼續前請檢查任務。工具不會自動重播。",
+    "safeResume": "正在從已儲存的對話上下文繼續。",
+    "dismiss": "略過",
+    "continue": "繼續"
   },
   "lightbox": {
     "title": "圖片預覽",
@@ -1437,16 +1484,16 @@
   "workbench": {
     "aria": "對話工作台",
     "panes": "窗格",
-    "tabAria": "標籤頁：{{title}}",
+    "tabAria": "群組：{{title}}",
     "panesInTab": "{{title}} 中的窗格",
     "collapseTabGroup": "收合 {{title}} 中的窗格",
     "expandTabGroup": "展開 {{title}} 中的窗格",
     "dropPane": "將 {{pane}} 移入 {{tab}}",
     "createGroup": "建立群組",
     "moveTo": "移動到",
-    "renameTabTitle": "重新命名分頁",
-    "renameTabDescription": "為這個分頁命名，以便整理其中的窗格。",
-    "renameTabPlaceholder": "分頁名稱",
+    "renameGroupTitle": "重新命名群組",
+    "renameGroupDescription": "為這個群組命名。",
+    "renameGroupPlaceholder": "群組名稱",
     "dissolveTab": "解散群組",
     "layout": "窗格佈局",
     "addPane": "新增窗格",
