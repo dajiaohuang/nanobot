@@ -1070,6 +1070,13 @@
     "error": "Error de conexión"
   },
   "thread": {
+    "compaction": {
+      "cancelled": "Compresión de contexto cancelada",
+      "empty": "No hay contexto que comprimir.",
+      "started": "Comprimiendo el contexto…",
+      "failed": "La compresión del contexto falló",
+      "succeeded": "Contexto comprimido"
+    },
     "loadingConversation": "Cargando conversación…",
     "empty": {
       "greetings": {
@@ -1186,8 +1193,16 @@
       "switchModel": "Cambiar el modelo de este chat",
       "manageModels": "Gestionar modelos",
       "context": {
-        "tooltip": "Contexto · {{tokens}}{{capacity}}",
-        "meterDescription": "{{context}}. {{percent}} % usado."
+        "tooltip": "Contexto {{percent}}%",
+        "detailsLabel": "Abrir uso del contexto",
+        "panelTitle": "Uso del contexto",
+        "contextTitle": "Contexto",
+        "recentRounds": "Rondas recientes",
+        "inputTrend": "Tokens de entrada",
+        "input": "Tokens de entrada",
+        "cacheHitRate": "Tasa de aciertos de KV Cache",
+        "output": "Tokens de salida",
+        "duration": "Tiempo de generación"
       },
       "queued": {
         "label": "Guía en cola",
@@ -1245,6 +1260,10 @@
           "new": {
             "title": "Nuevo chat",
             "description": "Restablece este chat e inicia una conversación nueva."
+          },
+          "compact": {
+            "title": "Compactar contexto",
+            "description": "Compacta el contexto de este chat y continúa la conversación."
           },
           "stop": {
             "title": "Detener tarea actual",
