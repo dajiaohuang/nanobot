@@ -28,6 +28,7 @@ from nanobot.agent.hook import AgentHook, AgentHookContext, AgentRunHookContext
 from nanobot.agent.tool_schema_selection import select_model_visible_tools
 from nanobot.agent.tools.execution import execute_tool_calls
 from nanobot.agent.tools.registry import ToolRegistry
+from nanobot.events import NO_EVENTS, EventSink
 from nanobot.llm_usage.context import (
     LLMUsageSource,
     bind_llm_usage_source,
@@ -60,7 +61,6 @@ from nanobot.utils.runtime import (
 )
 
 ContinuationCallback = Callable[[], str | None]
-RetryWaitCallback = Callable[[str], Awaitable[None]]
 CheckpointCallback = Callable[[dict[str, Any]], Awaitable[None]]
 InjectionCallback = Callable[..., Awaitable[Iterable[Any] | None]]
 
@@ -104,10 +104,8 @@ class AgentRunSpec:
     concurrent_tools: bool = False
     workspace: Path | None = None
     session_key: str | None = None
-    context_block_limit: int | None = None
     mcp_schema_budget_bytes: int = 0
     provider_retry_mode: str = "standard"
-    retry_wait_callback: RetryWaitCallback | None = None
     checkpoint_callback: CheckpointCallback | None = None
     consolidate_history: HistoryConsolidator | None = None
     consolidate_provider_compaction: ProviderCompactionConsolidator | None = None
@@ -118,6 +116,7 @@ class AgentRunSpec:
     finalize_on_max_iterations: bool = True
     provider_state: ProviderConversationState | None = None
     llm_usage_source: LLMUsageSource | None = None
+    events: EventSink = NO_EVENTS
 
 
 @dataclass(slots=True)
@@ -128,6 +127,9 @@ class AgentRunResult:
     messages: list[dict[str, Any]]
     tools_used: list[str] = field(default_factory=list)
     usage: LLMUsage | None = None
+    # One entry per runner-visible model round. Recovery dispatches needed to
+    # produce that round's response are folded into the same usage value.
+    round_usages: list[LLMUsage] = field(default_factory=list)
     stop_reason: str = "completed"
     error: str | None = None
     tool_events: list[dict[str, str]] = field(default_factory=list)
@@ -386,6 +388,7 @@ class AgentRunner:
         final_content: str | None = None
         tools_used: list[str] = []
         usage: LLMUsage | None = None
+        round_usages: list[LLMUsage] = []
         error: str | None = None
         stop_reason = "completed"
         tool_events: list[dict[str, str]] = []
@@ -419,13 +422,13 @@ class AgentRunner:
             session_key=spec.session_key,
             max_tool_result_chars=spec.max_tool_result_chars,
             context_window_tokens=spec.runtime.context_window_tokens,
-            context_block_limit=spec.context_block_limit,
             max_tokens=spec.runtime.generation.max_tokens,
         )
         request_state = ModelRequestState(
             config=governance_config,
             conversation=conversation_state,
             compaction=compaction,
+            events=spec.events,
         )
 
         for iteration in range(spec.max_iterations):
@@ -441,7 +444,7 @@ class AgentRunner:
                 if request_state.compaction is not None
                 else messages
             )
-            response = await self._request_model(
+            response, raw_usage = await self._request_model(
                 spec,
                 request_messages,
                 hook,
@@ -468,7 +471,7 @@ class AgentRunner:
                 response.content,
             )
             response.content = cleaned_content
-            raw_usage = self._record_request_usage(spec, request_state, response)
+            round_usages.append(raw_usage)
             context.usage = raw_usage
             usage = self._merge_usage(usage, raw_usage)
             if reasoning_text and not context.streamed_reasoning:
@@ -620,6 +623,7 @@ class AgentRunner:
                     transcript=messages,
                 )
                 retry_usage = self._record_request_usage(spec, request_state, response)
+                round_usages.append(retry_usage)
                 usage = self._merge_usage(usage, retry_usage)
                 raw_usage = self._merge_usage(raw_usage, retry_usage)
                 context.response = response
@@ -819,6 +823,7 @@ class AgentRunner:
                     messages,
                     usage,
                     request_state=request_state,
+                    round_usages=round_usages,
                 )
             if terminal_content is None:
                 terminal_content = self._max_iterations_fallback(spec)
@@ -835,6 +840,7 @@ class AgentRunner:
             messages=messages,
             tools_used=tools_used,
             usage=usage,
+            round_usages=round_usages,
             stop_reason=stop_reason,
             error=error,
             tool_events=tool_events,
@@ -861,7 +867,6 @@ class AgentRunner:
             "tools": tools,
             "model": spec.runtime.model,
             "retry_mode": spec.provider_retry_mode,
-            "on_retry_wait": spec.retry_wait_callback,
         }
         generation = spec.runtime.generation
         kwargs["temperature"] = generation.temperature
@@ -880,7 +885,7 @@ class AgentRunner:
         model_visible_tools: list[dict[str, Any]],
         malformed_retry: bool = False,
         transcript: list[dict[str, Any]] | None,
-    ) -> LLMResponse:
+    ) -> tuple[LLMResponse, LLMUsage]:
         timeout_s = self._resolve_llm_timeout_s(spec)
         tool_definitions = spec.tools.get_definitions()
         messages, provider_context = await self.context_governor.prepare_request(
@@ -1046,6 +1051,7 @@ class AgentRunner:
             current_request_boundary=(len(transcript) if transcript is not None else None),
         )
         request_state.provider_compaction_applied |= response.provider_compaction_applied
+        round_usage = self._record_request_usage(spec, request_state, response)
         # chat_stream_with_retry may recover internally, so only fail unfinished
         # hosted calls after the provider returns its final error response.
         if response.finish_reason == "error":
@@ -1073,16 +1079,14 @@ class AgentRunner:
                 messages,
                 response.content,
             )
-            return await self._request_model(
-                spec,
-                retry_messages,
-                hook,
-                context,
+            retry_response, retry_usage = await self._request_model(
+                spec, retry_messages, hook, context,
                 request_state=request_state,
                 model_visible_tools=model_visible_tools,
                 malformed_retry=True,
                 transcript=None,
             )
+            return retry_response, round_usage + retry_usage
         if (
             all_dropped
             and original_finish_reason in ("tool_calls", "function_call")
@@ -1095,12 +1099,18 @@ class AgentRunner:
                 messages,
                 response.content,
             )
-            return await self._request_no_tools(
+            fallback_response = await self._request_no_tools(
                 spec,
                 fallback_messages,
                 request_state=request_state,
             )
-        return response
+            fallback_usage = self._record_request_usage(
+                spec,
+                request_state,
+                fallback_response,
+            )
+            return fallback_response, round_usage + fallback_usage
+        return response, round_usage
 
     @staticmethod
     def _drop_malformed_tool_calls(
@@ -1194,6 +1204,7 @@ class AgentRunner:
         usage: LLMUsage | None,
         *,
         request_state: ModelRequestState,
+        round_usages: list[LLMUsage],
     ) -> tuple[str | None, LLMUsage | None]:
         compaction = request_state.compaction
         request_messages = (
@@ -1215,6 +1226,7 @@ class AgentRunner:
             return None, usage
 
         raw_usage = self._record_request_usage(spec, request_state, response)
+        round_usages.append(raw_usage)
         usage = self._merge_usage(usage, raw_usage)
         if response.finish_reason == "error" or response.has_tool_calls:
             logger.warning(
@@ -1322,7 +1334,7 @@ class AgentRunner:
         response: LLMResponse,
         *,
         tool_definitions: list[dict[str, Any]] | None,
-    ) -> LLMUsage | None:
+    ) -> LLMUsage:
         usage = response.usage
         if response.finish_reason == "error":
             if usage is None or usage.total_tokens == 0:
@@ -1344,7 +1356,7 @@ class AgentRunner:
         spec: AgentRunSpec,
         state: ModelRequestState,
         response: LLMResponse,
-    ) -> LLMUsage | None:
+    ) -> LLMUsage:
         assert state.messages is not None
         state.usage = self._usage_or_estimate(
             spec,
